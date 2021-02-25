@@ -21,6 +21,10 @@ library(tidyverse)
       class(df1) # "tbl_df", "tbl", "data.frame"
       class(df) # "tbl_spark", "tbl_sql", "tbl_lazy", "tbl"
       
+# 8. Are the column names different between the two objects
+      colnames(df)
+      colnames(df1)
+      
 # 9. Apply common RDD/SQL operations
       # select: 
       df %>% select(Sepal_Length, Species) %>% head %>% print
