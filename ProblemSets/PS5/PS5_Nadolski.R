@@ -101,12 +101,12 @@ library(leaflet)
           requestURL = "https://api.twitter.com/oauth/request_token"
           accessURL = "https://api.twitter.com/oauth/access_token"
           authURL = "https://api.twitter.com/oauth/authorize"
-          consumerKey = "w1XtBSuVtSo11mgD7zTZ1gC1g"
-          consumerSecret = "2rx237dYOWbh7Qwe9qcIBHfBSuof0Xe7dSTSzFM6j4djWptRs4"
+          consumerKey = Sys.getenv("TWIT_API_KEY")
+          consumerSecret = Sys.getenv("TWIT_API_KEYS")
           
-          accessToken = "1905857510-uFoTe7hPO05r2hsbaUGrKieBJWrhfoi6Qbpn32n"
-          accessSecret = "FQ8tseFISAtckoQsjIEDvkbiIg7OCkR3EED3JA5OzkHVQ"
-
+          accessToken = Sys.getenv("TWIT_ACCESS")
+          accessSecret = Sys.getenv("TWIT_ACCESSS")
+          
           
           setup_twitter_oauth(consumerKey,
                               consumerSecret,
