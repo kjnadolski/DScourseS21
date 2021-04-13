@@ -37,7 +37,8 @@ library(magrittr)
       # What is the dimension of the training data? 
           dim(housing_train_prepped) # The housing_train_prepped data has dimensions 405 x 75
       # How many more x variables do you have than in the original data? 
-          # There are 60 more x variables after using the recipe function in the testing data (74 compared to 60)
+          dim(housing_train)
+          # There are 60 more x variables after using the recipe function in the testing data (74 compared to 14)
 
 ######################################################################################################################
   # Estimate a LASSO model to predict log median housing value
