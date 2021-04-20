@@ -135,8 +135,6 @@ logit_ans %<>% left_join(logit_test %>% slice(1),by=c(".metric",".estimator")) %
   mutate(alg = "logit") %>% select(-starts_with(".config"))
 
 
-asdfafd
-
 #####################
 # tree model
 #####################
@@ -151,15 +149,46 @@ tune_tree_spec <- decision_tree(
   set_mode("classification")
 
 # define a set over which to try different values of the regularization parameter (complexity, depth, etc.)
-tree_parm_df1 <- tibble(cost_complexity = seq(.001,.2,by=.05))
-tree_parm_df2 <- tibble(min_n = seq(10,100,by=10))
-tree_parm_df3 <- tibble(tree_depth = seq(5,20,by=5))
-tree_parm_df  <- full_join(tree_parm_df1,tree_parm_df2,by=character()) %>% full_join(.,tree_parm_df3,by=character())
+    # min_n: integer ranging from 10 to 50 (minimum sample size for making a split)
+    tree_parm_df1 <- tibble(cost_complexity = seq(.001,.2,by=.05))
+    # tree_depth: integer ranging from 5 to 20 (maximum tree depth)
+    tree_parm_df2 <- tibble(min_n = seq(10,100,by=10))
+    # cost_complexity: real number ranging from 5 to 20 (maximum tree depth)
+    tree_parm_df3 <- tibble(tree_depth = seq(5,20,by=5))
+    # all 3 hyperparameters that need to be cross-validated
+    tree_parm_df  <- full_join(tree_parm_df1,tree_parm_df2,by=character()) %>% full_join(.,tree_parm_df3,by=character())
 
-# YOU FILL IN THE REST
+# 3-fold cross-validation
+rec_folds <- vfold_cv(income_train, v = 3)
 
+# Workflow
+rec_wf <- workflow() %>%
+  add_model(tune_tree_spec) %>%
+  add_formula(high.earner ~ education + marital.status + race + workclass + occupation + relationship + sex + age + capital.gain + capital.loss + hours)
 
+# Tuning results
+rec_res <- rec_wf %>%
+  tune_grid(
+    resamples = rec_folds,
+    grid = tree_parm_df
+  )
 
+# what are the best values for the hyperparameters?
+top_acc  <- show_best(rec_res, metric = "accuracy")
+best_acc <- select_best(rec_res, metric = "accuracy")
+final_tree <- finalize_workflow(rec_wf, best_acc)
+
+print('*********** TREE MODEL **************')
+tree_test <- last_fit(final_tree,income_split) %>%
+  collect_metrics()
+
+tree_test %>% print(n = 1)
+top_acc %>% print(n = 1)
+
+# combine results
+tree_ans <- top_acc %>% slice(1)
+tree_ans %<>% left_join(tree_test %>% slice(1),by=c(".metric",".estimator")) %>%
+  mutate(alg = "tree") %>% select(-starts_with(".config"))
 
 #####################
 # neural net
@@ -173,14 +202,45 @@ tune_nnet_spec <- mlp(
   set_engine("nnet") %>%
   set_mode("classification")
 
-# define a set over which to try different values of the regularization parameter (number of neighbors)
-nnet_parm_df1 <- tibble(hidden_units = seq(1,10))
-lambda_grid   <- grid_regular(penalty(), levels = 10)
-nnet_parm_df  <- full_join(nnet_parm_df1,lambda_grid,by=character())
+# define a set over which to try different values of the regularization parameters (hidden_units, penalty)
+    # hidden_units: an integer from 1:10 (number of units in hidden layer)
+    nnet_parm_df1 <- tibble(hidden_units = seq(1,10))
+    # penalty: like lambda in the LASSO model
+    lambda_grid   <- grid_regular(penalty(), levels = 10)
+    # both hyper parameters
+    nnet_parm_df  <- full_join(nnet_parm_df1,lambda_grid,by=character())
 
-# YOU FILL IN THE REST
+# 3-fold cross-validation
+rec_folds <- vfold_cv(income_train, v = 3)
 
+# Workflow
+rec_wf <- workflow() %>%
+  add_model(tune_nnet_spec) %>%
+  add_formula(high.earner ~ education + marital.status + race + workclass + occupation + relationship + sex + age + capital.gain + capital.loss + hours)
 
+# Tuning results
+rec_res <- rec_wf %>%
+  tune_grid(
+    resamples = rec_folds,
+    grid = nnet_parm_df
+  )
+
+# what are the best values for the hyperparameters?
+top_acc  <- show_best(rec_res, metric = "accuracy")
+best_acc <- select_best(rec_res, metric = "accuracy")
+final_nnet <- finalize_workflow(rec_wf, best_acc)
+
+print('*********** NEURAL NETWORK MODEL **************')
+nnet_test <- last_fit(final_nnet,income_split) %>%
+  collect_metrics()
+
+nnet_test %>% print(n = 1)
+top_acc %>% print(n = 1) 
+
+# combine results
+nnet_ans <- top_acc %>% slice(1)
+nnet_ans %<>% left_join(nnet_test %>% slice(1),by=c(".metric",".estimator")) %>%
+  mutate(alg = "nnet") %>% select(-starts_with(".config"))
 
 
 #####################
@@ -195,10 +255,39 @@ tune_knn_spec <- nearest_neighbor(
   set_mode("classification")
 
 # define a set over which to try different values of the regularization parameter (number of neighbors)
-knn_parm_df <- tibble(neighbors = seq(1,30))
+  knn_parm_df <- tibble(neighbors = seq(1,30))
 
-# YOU FILL IN THE REST
+# 3-fold cross-validation
+rec_folds <- vfold_cv(income_train, v = 3)
 
+# Workflow
+rec_wf <- workflow() %>%
+  add_model(tune_knn_spec) %>%
+  add_formula(high.earner ~ education + marital.status + race + workclass + occupation + relationship + sex + age + capital.gain + capital.loss + hours)
+
+# Tuning results
+rec_res <- rec_wf %>%
+  tune_grid(
+    resamples = rec_folds,
+    grid = knn_parm_df
+  )
+
+# what are the best values for the hyperparameters?
+top_acc  <- show_best(rec_res, metric = "accuracy")
+best_acc <- select_best(rec_res, metric = "accuracy")
+final_knn <- finalize_workflow(rec_wf, best_acc)
+
+print('*********** K-NEAREST NEIGHBORS **************')
+knn_test <- last_fit(final_tree,income_split) %>%
+  collect_metrics()
+
+knn_test %>% print(n = 1)
+top_acc %>% print(n = 1)
+
+# Combine results
+knn_ans <- top_acc %>% slice(1)
+knn_ans %<>% left_join(knn_test %>% slice(1),by=c(".metric",".estimator")) %>%
+  mutate(alg = "knn") %>% select(-starts_with(".config"))
 
 
 #####################
@@ -213,22 +302,51 @@ tune_svm_spec <- svm_rbf(
   set_engine("kernlab") %>%
   set_mode("classification")
 
-# define a set over which to try different values of the regularization parameter (number of neighbors)
-svm_parm_df1 <- tibble(cost      = c(2^(-2),2^(-1),2^0,2^1,2^2,2^10))
-svm_parm_df2 <- tibble(rbf_sigma = c(2^(-2),2^(-1),2^0,2^1,2^2,2^10))
-svm_parm_df  <- full_join(svm_parm_df1,svm_parm_df2,by=character())
+# define a set over which to try different values of the regularization parameters (cost and rbf_sigma)
+    # cost: a real number from the set {2^(-2), 2^(-1), 2^(0), 2^(1), 2^(2), 2^(10)} (how soft the margin of classification is)
+    svm_parm_df1 <- tibble(cost      = c(2^(-2),2^(-1),2^0,2^1,2^2,2^10))
+    # rbf_sigma: a real number from the same set (the shape of the Gaussian kernel)
+    svm_parm_df2 <- tibble(rbf_sigma = c(2^(-2),2^(-1),2^0,2^1,2^2,2^10))
+    # both hyperparameters
+    svm_parm_df  <- full_join(svm_parm_df1,svm_parm_df2,by=character())
 
-# YOU FILL IN THE REST
+# 3-fold cross-validation
+rec_folds <- vfold_cv(income_train, v = 3)
 
+# Workflow
+rec_wf <- workflow() %>%
+  add_model(tune_svm_spec) %>%
+  add_formula(high.earner ~ education + marital.status + race + workclass + occupation + relationship + sex + age + capital.gain + capital.loss + hours)
 
+# Tuning results
+rec_res <- rec_wf %>%
+  tune_grid(
+    resamples = rec_folds,
+    grid = svm_parm_df
+  )
 
+# what are the best values for the hyperparameters?
+top_acc  <- show_best(rec_res, metric = "accuracy")
+best_acc <- select_best(rec_res, metric = "accuracy")
+final_svm <- finalize_workflow(rec_wf, 
+                               best_acc)
 
+print('*********** SVM **************')
+svm_test <- last_fit(final_svm,income_split) %>%
+  collect_metrics()
 
+svm_test %>% print(n = 1)
+top_acc %>% print(n = 1)
 
+# Combine Results
+svm_ans <- top_acc %>% slice(1)
+svm_ans %<>% left_join(svm_test %>% slice(1),by=c(".metric",".estimator")) %>%
+  mutate(alg = "svm") %>% select(-starts_with(".config"))
 
 
 #####################
 # combine answers
 #####################
-all_ans <- bind_rows(logit_ans,tree_ans,nnet_ans,knn_ans,svm_ans)
-datasummary_df(all_ans %>% select(-.metric,-.estimator,-mean,-n,-std_err),output="markdown") %>% print
+all_ans <- bind_rows(logit_ans,tree_ans,nnet_ans,knn_ans)
+datasummary_df(all_ans %>% select(-.metric,-.estimator,-mean,-n,-std_err),output="latex") %>% print
+

@@ -1,0 +1,32 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+
+\title{Problem Set 10}
+\author{karley.j.nadolski }
+\date{April 2021}
+
+\usepackage{natbib}
+\usepackage{graphicx}
+
+\begin{document}
+
+\maketitle
+
+\section{Optimal Values of Tuning Parameters}
+\begin{table} [h]
+\begin{tabular}[t]{llllllll}
+penalty & .estimate & alg & cost\_complexity & tree\_depth & min\_n & hidden\_units & neighbors\\
+0.00 & 0.85 & logit &  &  &  &  & \\
+ & 0.87 & tree & 0.00 & 15.00 & 30.00 &  & \\
+0.01 & 0.85 & nnet &  &  &  & 6.00 & \\
+ & 0.87 & knn &  &  &  &  & 28.00\\
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+    \item How does each algorithm's out-of-sample performance compare with each of the other algorithms? 
+    
+    None of the standard errors of any of the algorithms exceed 0.005. The KNN algorithm has the lowest standard error with 0.000502, but the highest standard error (from the the neural network algorithm) is only 0.0046. They performed similarly well, but the KNN algorithm was the best. 
+\end{itemize}
+
+\end{document}
