@@ -1,0 +1,370 @@
+---
+title: "README"
+author: "Karley Nadolski"
+date: "4/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Tapping into the potential of Craigslist Data: Taking A Closer Look at the OKC Rental Market ##
+
+Craigslist is one of the most popular websites in the world, and the most popular site for classifieds-style advertisements. Each of the site's nearly 500 subdomains houses thousands of listings for available rental units in the local area. Tapping into this source of fine-grained and unit specific rental information could be a valuable supplement to other more traditional data sources for data scientists trying to understand the rental market on a more short-term, fast-paced scale. This project will walk through using the [rvest] (https://rvest.tidyverse.org/) package in R to scrape information on apartment listings from the [Oklahoma City Craigslist subdomain] (https://oklahomacity.craigslist.org/). After the data has been collected and organized, this project uses the SentimentAnalysis package in R to perform naive sentiment analysis on the user-generated descriptions and titles for each rental unit. This paper will ask the questions: What does the rental market in OKC look like through the eyes of Craigslist? Is the actual Craigslist listing important (ie - does extra information matter?)? and What is the premium of extra information in the Craigslist market?
+
+## Load Needed Packages 
+
+```{r, message=FALSE}
+library(tidyverse)
+library(rvest)
+library(janitor)
+library(leaflet)
+library(purrr)
+library(MASS)
+library(SentimentAnalysis)
+```
+
+## Start Webscraping using rvest
+
+### Build query
+Start by establishing a baseurl that directs the code to Oklahoma City's subdomain on craigslist.org. Each subdomain has a unique URL where the name of the city is integrated into the address. The next task is to build out the query to include specific search terms on the subdomain. This is where you can set the terms of your search to reflect the minimum number of bedrooms, bathrooms, and square footage that you are interested in looking at. In this project, I used a minimum of 2 bedrooms, 1 bathroom, and 900 square feet. 
+
+```{r}
+      location <- 'oklahomacity'
+      bedrooms <- 2
+      bathrooms <- 1
+      min_sqft <- 900
+      
+      baseurl <- paste0("https://", location, ".craigslist.org/search/apa")
+      
+      queries <- c("?")
+      queries <- c(queries, paste0("bedrooms=", bedrooms))
+      queries <- c(queries, paste0("bathrooms=", bathrooms))
+      queries <- c(queries, paste0("minSqft=", min_sqft))
+      
+      query_url <- paste0(baseurl, queries[1], paste(queries[2:length(queries)], collapse = "&"))
+      
+      raw_query <- xml2::read_html(query_url)
+          
+          raw_query
+```
+
+### Select out the listing ads from the HTML script
+Using the HTML selector "li.result-row" will direct the query to look specifically at the rental listings on the webpage, here is where we will extract our data. 
+```{r}
+raw_ads <- html_nodes(raw_query, "li.result-row")
+          raw_ads %>% head()
+```
+### Choose which attributes to extract from each rental listing
+
+For this project, I chose to extract information about each listing's ID, title, price, bedrooms, date of listing, locales, and square footage. Each attribute is then collected and combined into a single dataframe called "craigslist." The first observation has been printed below.  
+```{r}
+      ids <-
+        raw_ads %>%
+        html_attr('data-pid')
+      
+      titles <-
+        raw_ads %>%
+        html_node("a.result-title") %>%
+        html_text()
+      
+      prices <-
+        raw_ads %>% 
+        html_node("span.result-price") %>%
+        html_text()
+      
+      prices <- gsub(",", "", prices)
+      
+      prices <- 
+        prices %>%
+        str_extract("[0-9]+") %>%
+        as.numeric()
+      
+      bdrms <- 
+        raw_ads %>%
+        html_node(".housing") %>%
+        html_text() %>%
+        str_extract(".*br") %>%
+        str_extract("[0-9]") %>%
+        as.numeric()
+      
+      dates <-
+        raw_ads%>%
+        html_node('time') %>%
+        html_attr('datetime')   
+      
+      locales <-
+        raw_ads %>%
+        html_node(".result-hood") %>%
+        html_text()
+      
+      sqft <- 
+        raw_ads %>%
+        html_node('.housing') %>%
+        html_text() %>%
+        str_extract(".*?ft2") %>%
+        str_extract("[0-9]+") %>%
+        as.numeric()
+      
+      
+      craigslist <- data.frame(ids, titles, prices, bdrms, dates, locales, sqft)
+      craigslist[1,]
+```
+#### Extract information from within each rental listing
+This slight change in where the data is stored affects how information can be extracted from the website. All of the previous attributes are available to be parsed directly from the search results page on the Craigslist website. To scrape information about each listing's geographic location and listing description, a few more steps of code are needed. Location and description are then added to the craigslist dataframe to be used for analysis, the first observation is printed out for you to review. 
+
+```{r}
+urls <-
+        raw_ads %>%
+        html_node(".result-title") %>%
+        html_attr("href")
+      
+      
+      latlongs <- 
+        map_dfr(urls, function(x){
+          xml2::read_html(x) %>% 
+            html_node("#map") %>%
+            html_attrs() %>%
+            t() %>%
+            as_tibble() %>%
+            select_at(vars(starts_with("data-"))) %>%
+            mutate_all(as.numeric)
+        }
+        )
+      
+      # scraping the description from each individual ad's URL
+      descriptions <- 
+        map_dfr(urls, function(x){
+          read_html(x) %>%
+            # SELECTOR: #postingbody
+            html_nodes("#postingbody") %>%
+            html_text() %>%
+            as_tibble()
+        }
+        )
+      
+          craigslist <- data.frame(ids, titles, prices, bdrms, dates, locales, sqft, descriptions, latlongs)
+          craigslist[1,]
+```
+### Scrape information from all pages of the results, not just the first one 
+To continue extracting information from the Craigslist search results, coerce the code that's been run so far into a for loop that is able to page through each of the pages of listings. On Craigslist, each page of results for a search query has 120 unique listings. The for loop will move iteratively through the listings by taking in 120 observations at a time. This should take about 15 minutes to run to completion. The Sys.sleep() function delays each query by 5 seconds. 
+```{r}
+loopn <- seq(from = 121, to = 3000, by = 120)
+        
+        for(i in loopn) {
+          Sys.sleep(5) # delays each query by 5 seconds
+          queriesloop <- queries
+          
+          # Add offset to URL in intervals of 120 (each Craigslist results page has 120 listings)
+          queriesloop <- c(queries, paste0("s=", i))
+          query_url <- paste0(baseurl,queriesloop[1], paste(queriesloop[2:length(queriesloop)], collapse = "&"))
+        
+          # query craigslist!
+          raw_query <- xml2::read_html(query_url)
+        
+          ## Select out the listing ads
+          raw_ads <- html_nodes(raw_query, "li.result-row")
+        
+        # Extracting attributes from each result-row: ID, Title, Price, Date, Square Footage, and Locale
+        
+            ids <- raw_ads %>% html_attr('data-pid')
+            titles <- raw_ads %>% html_node("a.result-title") %>% html_text()
+            prices <- raw_ads %>% html_node("span.result-price") %>% html_text()
+              prices <- gsub(",", "", prices)
+              prices <- prices %>% str_extract("[0-9]+") %>% as.numeric()
+            bdrms <- raw_ads %>% html_node(".housing") %>% html_text() %>% str_extract(".*br") %>% str_extract("[0-9]") %>% as.numeric()
+            dates <- raw_ads%>% html_node('time') %>% html_attr('datetime')   
+            locales <- raw_ads %>% html_node(".result-hood") %>% html_text()
+            sqft <- raw_ads %>% html_node('.housing') %>% html_text() %>% str_extract(".*?ft2") %>% str_extract("[0-9]+") %>% as.numeric()
+        
+              # Scraping individual ad postings for extra information not included on the initial search results
+                  # the map_dfr() function operates like a for loop, iteratively assessing the function for each url in the urls vector
+              # Add Locations of the apartments/houses by scraping each individual ad for the location attributes
+              urls <- raw_ads %>% html_node(".result-title") %>% html_attr("href")
+              latlongs <-  map_dfr(urls, function(x){
+                  xml2::read_html(x) %>% 
+                    html_node("#map") %>%
+                    html_attrs() %>%
+                    t() %>%
+                    as_tibble() %>%
+                    select_at(vars(starts_with("data-"))) %>%
+                    mutate_all(as.numeric)
+                }
+                )
+               
+               # scraping the description from each individual ad's URL
+                  descriptions <- 
+                    map_dfr(urls, function(x){
+                      read_html(x) %>%
+                        # SELECTOR: #postingbody
+                        html_nodes("#postingbody") %>%
+                        html_text() %>%
+                        as_tibble()
+                    }
+                  )
+            
+                  
+            craigslistloop <- data.frame(ids, titles, prices, bdrms, dates, locales, sqft, descriptions, latlongs)
+            
+            craigslist <- rbind(craigslist, craigslistloop)
+            # RBIND posts in each loop separately to the master craigslist data frame
+        }
+```
+
+### Clean and organize data 
+A few extra steps are needed to clean the data after it has been scraped from the website. The biggest task in cleaning the data is eliminating duplicate listings. Craigslist users who are posting new listings will often post the same rental unit with all the same information multiple times (sometimes even multiple times a day) so that the listing itself doesn't get lost in the thousands of available rental units. For the sake of analysis, we will strip the dataset of all entries that have identical descriptions. 
+```{r}
+# Change name of column from "value" to "descriptions" 
+          names(craigslist)[names(craigslist) == "value"] <- "descriptions"
+
+ # Create an observation that is rent per square footage
+          craigslist$rentbysqft <- craigslist$prices/craigslist$sqft
+          
+# Cleaning the dataset to exclude duplicate entries with different id numbers
+                unique(craigslist$descriptions) # want to exclude duplicate titles (some rental companies will create identical listings with different id numbers and time stamps)
+                sum(duplicated(craigslist$descriptions)) # 705
+                craigslist.clean <- craigslist[!(duplicated(craigslist$descriptions)),]
+```
+#### Clean each description
+For most of the other columns of data, the webscraping code also has instructions on how to appropriately clean and format the data. The descriptions section is the column that requires the most attention after scraping to make it usable for sentiment analysis. This code gets rid of numbers, elements of the HTML language (\n or \t specifically), and other nonsense strings that are common throughout all descriptions. 
+```{r}
+# cleaning the descriptions (getting rid of any extraneous HTML language, numbers, punctuation)
+            craigslist.clean$descriptions <- gsub("QR Code Link to This Post", "", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub("\n","", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub("/","", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub("[0-9]","", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub("$","", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub("%","", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub(",","", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub("|","", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub("@.*","", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub("!","", craigslist$descriptions)
+            craigslist.clean$descriptions <- gsub("\t", "", craigslist$descriptions)
+```
+
+### Perform Sentiment Analysis using analyzeSentiment()
+Craigslist ads require users to supply a title for each listing and a written description of the rental unit. Each word is endowed with a certain sentiment that conveys an overall emotion that readers and other craigslist users pick up on (sometimes completely subconsciously). The analyzeSentiment() function from the SentimentAnalysis package in r quantifies the sentiment in each description and title by referencing different sentiment dictionaries. 
+```{r}
+            sentiment <- analyzeSentiment(craigslist$descriptions)
+            # adding sentiment analysis observations to craigslist dataframe
+                craigslist$wordcount <- sentiment$WordCount
+                craigslist$sentimentGI <- sentiment$SentimentGI
+                craigslist$p.GI <- sentiment$PositivityGI
+                craigslist$sentimentHE <- sentiment$SentimentHE
+                craigslist$p.HE <- sentiment$PositivityHE
+                craigslist$sentimentLM <- sentiment$SentimentLM
+                craigslist$p.LM <- sentiment$PositivityLM
+                craigslist$sentimentQDAP <- sentiment$SentimentQDAP
+                craigslist$p.QDAP <- sentiment$PositivityQDAP
+                craigslist$binary <- convertToBinaryResponse(sentiment)$SentimentQDAP
+                craigslist$direction <- convertToDirection(sentiment)$SentimentQDAP
+                
+                
+            # performing sentiment analysis on TITLES
+                title.sentiment <- analyzeSentiment(craigslist.clean$titles)
+                craigslist.clean$t.wordcount <- title.sentiment$WordCount
+                craigslist.clean$t.sentimentGI <- title.sentiment$SentimentGI
+                craigslist.clean$t.p.GI <- title.sentiment$PositivityGI
+                craigslist.clean$t.sentimentHE <- title.sentiment$SentimentHE
+                craigslist.clean$t.p.HE <- title.sentiment$PositivityHE
+                craigslist.clean$t.sentimentLM <- title.sentiment$SentimentLM
+                craigslist.clean$t.p.LM <- title.sentiment$PositivityLM
+                craigslist.clean$t.sentimentQDAP <- title.sentiment$SentimentQDAP
+                craigslist.clean$t.p.QDAP <- title.sentiment$PositivityQDAP
+                craigslist.clean$t.binary <- convertToBinaryResponse(title.sentiment)$SentimentQDAP
+                craigslist.clean$t.direction <- convertToDirection(title.sentiment)$SentimentQDAP
+```
+#### Clear out possible outliers
+Craigslist is not immune to user-error or clever marketing tactics, but those do get in the way of analysis. It's a good idea to strip the dataset of outliers with unreasonable rental rates from the dataset. It would be unreasonable for an apartment in Oklahoma City to have a rent of \$0 a month or more than \$25,000 dollars a month. These observations will be cleaned out of the dataset. 
+```{r}
+ # cleaning the dataset to exclude a single outlier with monthly rent = 50,000
+                  sum(craigslist.clean$prices > 25000) # 1
+                    # this outlier has most likely come from a typo in the data, it would not be reasonable for an apartment in OKC to have a rent greater than $25,000 per month
+                  sum(craigslist.clean$prices == 0) # 61
+                    # it would also be unreasonable for an apartment in OKC to have a rent of $0, these observations most likely came formatting that had the rent price stored in a different area of the listing (in the picture or the description, for example)
+                  craigslist.clean  <- craigslist.clean[!craigslist.clean$prices == 0,]
+                  craigslist.clean <- craigslist.clean[!craigslist.clean$prices > 25000,]
+                  
+```
+
+### Understanding the Data
+```{r}
+ # Visualizing certain observations
+                hist(craigslist.clean$wordcount, breaks = 10)
+                hist(craigslist.clean$sentimentHE)
+                hist(craigslist.clean$sentimentGI)
+                hist(craigslist.clean$sentimentLM)
+                hist(craigslist.clean$sentimentQDAP)
+                
+                hist(craigslist.clean$sqft)
+                hist(log(craigslist.clean$prices), breaks = 3, xlim= c())
+                hist(craigslist.clean$bdrms, breaks = 4)
+                
+                max(craigslist.clean$prices) # $5300
+                min(craigslist.clean$prices) # $175
+```
+#### Visualizing different relationships
+```{r}
+par(mfrow=c(3,2))
+                
+                plot(craigslist.clean$wordcount, craigslist.clean$prices, xlab = "Word Count", ylab= "Prices")
+                abline(lm(craigslist.clean$prices ~ craigslist.clean$wordcount), col = "blue")
+                
+                plot(craigslist.clean$direction, craigslist.clean$prices, xlab = "Sentiment", ylab= "Prices")
+      
+                plot(craigslist.clean$t.binary, craigslist.clean$prices, xlab = "Title Sentiment", ylab= "Prices")
+                
+                plot(craigslist.clean$sqft, craigslist.clean$prices, xlab = "Sq. Footage", ylab= "Prices")
+                abline(lm(craigslist.clean$prices ~ craigslist.clean$sqft), col = "blue")
+                
+                plot(craigslist.clean$bdrms, craigslist.clean$prices, xlab = "Bedrooms", ylab= "Prices")
+                
+                plot(craigslist.clean$sentimentQDAP, craigslist.clean$prices, xlab = "QDAP Sentiment", ylab= "Prices")
+                abline(lm(craigslist.clean$prices~craigslist.clean$sentimentQDAP), col="blue")
+```
+#### Descriptive Statistics
+```{r}
+median(craigslist.clean$prices)
+                median(craigslist.clean$sqft)
+                
+                mean(craigslist.clean$rentbysqft)
+                median(craigslist.clean$rentbysqft)
+                
+                max(craigslist.clean$wordcount)
+                min(craigslist.clean$wordcount)
+```
+
+#### Visualizing location
+```{r}
+names(craigslist.clean)
+                
+                leaflet(craigslist.clean) %>%
+                  addProviderTiles(providers$Stamen.TonerLines, group = "Basemap") %>%
+                  addProviderTiles(providers$Stamen.TonerLite, group = "Basemap") %>%
+                  addCircles(lat = ~`data.latitude`, lng = ~`data.longitude`, label = paste(craigslist.clean$ids, craigslist.clean$locales, craigslist.clean$prices, sep=",")
+                  )
+```
+
+### Building a Regression Model 
+The regression I used to better understand the relationship between rental price and Craigslist description is as follows: 
+$$
+Y_{price}=\beta_{0} + beta_{1}X_{sqft} + \beta_{2} X_{bdrms} + \beta_{3}X_{p.QDAP} + \beta_{4}X_{wordcount} + \beta_{5}X_{t.wordcount}+\beta_{6}X_{t.direction} + \varepsilon,
+$$
+This model uses $X_{sqft}$ and $X_{bdrms}$ as control variables to better understand the relationship between the sentiment of a listing's description (how positive it is - $X_{p.QDAP}$), the length of the description ($X_{wordcount}$), the length of the title ($X_{t.wordcount}$), and the sentiment of the title itself (positive, neutral, or negative - $X_{t.direction}$). 
+ 
+Using both OLS (lm() function) and IRLS (rlm() function), the results are as follows: 
+```{r}
+        
+        ols.craigslist <- lm(prices ~ sqft + bdrms + p.QDAP + wordcount + t.wordcount + t.direction, data = craigslist.clean)
+        irls.craigslist <- rlm(prices ~ sqft + bdrms + p.QDAP + wordcount + t.wordcount + t.direction, data = craigslist.clean)
+            summary(ols.craigslist)
+            summary(irls.craigslist)
+```
+
+### Conclusion
+
+In Oklahoma City, like in many cities across the United States, there exists a rental market that Craigslist is uniquely able to summarize. Traditional data sources that cover rental markets in the United States aren’t able to release data at a fast enough pace to accurately characterize the market as it changes. With an introductory knowledge of webscraping, it’s possible to analyze data from a local Craigslist subdomain in real time. As housing markets and the internet grow and change together, it’s important that data scientists are prepared to take advantage of new and changing data sources.
+
+### References
+This project relied heavily on the guidance of online tutorials and youtube walk-throughs. This tutorial from Nikhil Kaza's [github profile] (https://nkaza.github.io/post/2020-02-04-scraping-craigslist-posts/) was especially helpful in understanding how to scrape data from Craigslist. This [blog post] (https://medium.com/swlh/exploring-san-francisco-apartments-on-craigslist-with-r-43e5fa38a77b), by Vishal Chandawarkar was also helpful in understanding how to scrape information from multiple pages of the Craigslist search results. 
