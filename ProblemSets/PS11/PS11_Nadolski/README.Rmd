@@ -355,12 +355,16 @@ This model uses $X_{sqft}$ and $X_{bdrms}$ as control variables to better unders
  
 Using both OLS (lm() function) and IRLS (rlm() function), the results are as follows: 
 ```{r}
+
+  # Create an observation that is log(rent) to use in regression
+          craigslist$logrent <- log(craigslist$prices)
         
-        ols.craigslist <- lm(prices ~ sqft + bdrms + p.QDAP + wordcount + t.wordcount + t.direction, data = craigslist.clean)
-        irls.craigslist <- rlm(prices ~ sqft + bdrms + p.QDAP + wordcount + t.wordcount + t.direction, data = craigslist.clean)
+        ols.craigslist <- lm(logrent ~ sqft + bdrms + p.QDAP + wordcount + t.wordcount + t.direction, data = craigslist.clean)
+        irls.craigslist <- rlm(logrent ~ sqft + bdrms + p.QDAP + wordcount + t.wordcount + t.direction, data = craigslist.clean)
             summary(ols.craigslist)
             summary(irls.craigslist)
 ```
+For interpretation of these regression coefficients, it's important to remember that this model features a log transformed outcome variable. To interpret the coefficients (because none of the x values have been log transformed), you should exponentiate the coefficient, subtract 1, and then multiply by 100. This new value will signify the percent change in y with a one-unit change in the predictor variable of interest. 
 
 ### Conclusion
 
