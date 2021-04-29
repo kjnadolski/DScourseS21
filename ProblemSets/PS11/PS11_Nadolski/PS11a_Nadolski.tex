@@ -36,7 +36,7 @@
 \begin{document}
 
 \begin{singlespace}
-\title{Tapping in to the potential of Craigslist data\thanks{Acknowledgements here, if any.}}
+\title{Keep It Short and Sweet: Sentiment Analysis and the OKC Rental Market as seen on Craigslist\thanks{Thank you to Dr. Ransom, who always tells us in the nicest way when we've been boneheads.}}
 \end{singlespace}
 
 \author{Karley Nadolski\thanks{Department of Economics, University of Oklahoma.\
@@ -104,9 +104,6 @@ As a final step before linear regression, it’s worthwhile to look at the relat
 This 1200-unit snapshot of the rental market for units with 2 bedrooms, 1 bathroom, and a minimum of 900 square feet provides a valuable peek into the Oklahoma City rental market. Geographically, the units are spread out from Edmond to Norman (with a single unit located as far west as Elk City). A map of the listings within the Oklahoma City Metro area is displayed in Figure \ref{fig:fig1} 
 
 Within the sample, the median monthly rent was \$1,050 and the median square footage was 1,152 ft2. The highest rent per unit, after cleaning, is \$5,300 and the lowest rent per unit is \$175 per month. Similar quantitative analysis projects that review rental markets in certain regions of the country use rent by square foot as an important metric for comparison across markets. In Oklahoma City, the mean rent by square foot is \$0.895 and the median is \$0.918. Performing naïve sentiment analysis showed that each unit’s unique description ranged in length from 2 to 385 words. Figure \ref{fig:fig2} contains plots depicting each relationship graphically. 
- 
-
-Table \ref{tab:descriptives} contains summary statistics.
 
 
 \section{Empirical Methods}\label{sec:methods}
@@ -117,21 +114,21 @@ It’s clear that the strongest correlative relationship between two variables i
 
 \begin{equation}
 \label{eq:1}
-Y_{price}=\beta_{0} + \beta_{1}X_{sqft} + \beta_{2} X_{bdrms} + \beta_{3}X_{p.QDAP} + \beta_{4}X_{wordcount} + \beta_{5}X_{t.wordcount}+\beta_{6}X_{t.direction} + \varepsilon,
+Y_{logrent}=\beta_{0} + \beta_{1}X_{sqft} + \beta_{2} X_{bdrms} + \beta_{3}X_{p.QDAP} + \beta_{4}X_{wordcount} + \beta_{5}X_{t.wordcount}+\beta_{6}X_{t.direction} + \varepsilon,
 \end{equation}
-where $Y_{price}$ is a continuous variable describing the price of each rental listing, $X_{sqft}$ is the square footage of the rental unit, $X_{bdrms}$ is the number of bedrooms, $X_{p.QDAP}$ is the positivity index from the listing's description, $X_{wordcount}$ and $X_{t.wordcount}$ are the word counts for the description and the title, respectively, and finally $X_{t.direction}$ describes the sentiment of the listing title. This regression is done in R, using the lm() function from R’s base package. A second robust regression was done using the rlm() function from the “MASS” package to correct for possible heteroskedasticity. The results of the regression will be displayed and interpreted in the following section.
+where $Y_{logrent}$ is a log transformation of the continuous variable describing the price of each rental listing, $X_{sqft}$ is the square footage of the rental unit, $X_{bdrms}$ is the number of bedrooms, $X_{p.QDAP}$ is the positivity index from the listing's description, $X_{wordcount}$ and $X_{t.wordcount}$ are the word counts for the description and the title, respectively, and finally $X_{t.direction}$ describes the sentiment of the listing title. This regression is done in R, using the lm() function from R’s base package. A second robust regression was done using the rlm() function from the “MASS” package to correct for possible heteroskedasticity. The results of the regression will be displayed and interpreted in the following section.
 
 \section{Research Findings}\label{sec:results}
 
-The results of this simple linear regression were not surprising, but they did provide an interesting insight into the premium of information in online classified-style advertising. The main results are reported in Table \ref{tab:estimates}.
+The results of this simple linear regression were not surprising, but they did provide an interesting insight into the premium of information in online classified-style advertising. The main results are reported in Table \ref{tab:estimates}. The proper of each interpretation in terms of percentage change in the outcome variable (rental price) is included in Table \ref{tab:interps}
 
-As was expected, the most significant regression coefficients are sqft and bdrms with predicted values of 0.896 and -236.32 respectively. The negative sign on the coefficient for bdrms only appears when sqft is also included as a control variable within the model. This shows the relationship between price and number of bedrooms when square footage is held equal. The positive relationship between bdrms and price seen when sqft is not included in the model is captured more effectively by the benefit of an extra square foot of space when both variables are used as controls in a model. 
+As was expected, the most significant coefficients are sqft and bdrms. Each additional square foot is related to a 0.07\% increase in rent while each additional bedroom is related to a 17.72\% decrease in rental price. The negative sign on the coefficient for bdrms only appears when sqft is also included as a control variable within the model. This shows the relationship between price and number of bedrooms when square footage is held equal. The positive relationship between bdrms and price seen when sqft is not included in the model is captured more effectively by the benefit of an extra square foot of space when both variables are used as controls in a model. 
 
-In a less expected way, the only other coefficient with a p-score less than 2x10-16 is the word count of the description. This BETA HAT estimate of 1.885 shows that for every additional word in the description, the price rises by about \$2 per month. It would be unreasonable to assume causality based on this simple regression, but it does show an interesting premium that information has within the Craigslist marketplace. Advertisements that are longer, usually include more information about the unit being advertised. This extra information is important for potential renters who are interested in knowing more about the unit than just the bare minimum that Craigslist requires. The word count for the title also has a statistically significant relationship with price from this model, but this particular relationship is negative (with a BETA HAT estimate of -12.58). This might relate to a salesman-like strategy among Craigslist users who prefer snappy titles and longer, more informative descriptions. 
+In a less expected way, the only other coefficient with a p-score less than $2x10-16$ is the word count of the description. This $\hat{\beta}$ estimate of 0.001705 shows that for every additional word in the description, the price rises by 0.171\%. It would be unreasonable to assume causality based on this simple regression, but it does show an interesting premium that information has within the Craigslist marketplace. Advertisements that are longer, usually include more information about the unit being advertised. This extra information is important for potential renters who are interested in knowing more about the unit than just the bare minimum that Craigslist requires. The word count for the title also has a statistically significant relationship with price from this model, but this particular relationship is negative (with a $\hat{\beta}$ estimate of -.008005, which brings about a -0.8\% change in rent). This might relate to a salesman-like strategy among Craigslist users who prefer snappy titles and longer, more informative descriptions. 
 
 The other variable in this regression deals with the overall sentiment of the title of each individual listing. Both the neutral and the positive directionality of the sentiment in the listing title are positively related to the price, with a larger premium on explicitly positive titles. The p-value for each of these dummy variables is between 0.05 and 0.01. This estimation, along with the evaluation of title word count, shows that listings with short but explicitly positive titles do slightly better than neutral ones. 
 
-The final variable in this regression deals with the positivity of each listing’s description. The model shows a non-significant positive relationship between p.QDAP and price. Classified ads are often explicitly positive, making it difficult to find the true value of a positive description. 
+The final variable in this regression deals with the positivity of each listing’s description. The model shows a large but non-significant positive relationship between p.QDAP and price. According to the model, for a one-unit increase in the positivity index the rent would increase by 37\%. This is a large increase, but it is hard to meaningfully interpret without understanding what a unit on the positivity index would look like. Classified ads are often explicitly positive, making it difficult to find the true value of a positive description (especially in the absence of negative ones). 
 
 \section{Conclusion}\label{sec:conclusion}
 
@@ -146,6 +143,7 @@ The preliminary findings in this project leave room for more questions to be ask
 \pagebreak{}
 \begin{spacing}{1.0}
 \bibliographystyle{jpe}
+\nocite{*}
 \bibliography{References.bib}
 \addcontentsline{toc}{section}{References}
 \end{spacing}
@@ -191,30 +189,56 @@ The preliminary findings in this project leave room for more questions to be ask
 \label{fig:fig2}
 \end{figure}
 
-
+\clearpage
 %----------------------------------------
 % Table 1
 %----------------------------------------
 
 \begin{table}[ht]
 \caption{OLS estimates}
-\label{tab:estimates} 
+\label{tab:estimates}
 \centering
 \begin{threeparttable}
 \begin{tabular}{lccc}
 \toprule
                             & Estimate    & Std. Error & P-value \\
 \midrule
-sqft        & 0.89505***   & (0.03317)    & $<2e-16$    \\
-bdrms  & -234.539***   & (18.02865)   & $<2e-16$ \\
-p.QDAP        &      229.54856 & (184.04089)  & 0.21255 \\
-wordcount     &    1.87407***  & (0.10400)    & $<2e-16$\\
-t.wordcount & -12.57888**  & (4.26128) & 0.00322 \\
-t.directionneutral & 86.17754* & (41.89659) & 0.03992 \\
-t.directionpositive & 100.19908* & (41.44415) & 0.01577 \\
+sqft        & 7.038e-04***   & (2.987e-05)    & $<2e-16$    \\
+bdrms  & -1.951e-01***   & (11.623e-02)   & $<2e-16$ \\
+p.QDAP        &      3.150e-01 & (1.657e-01)  & 0.0576 \\
+wordcount     &    1.705e-03***  & (9.364e-05)    & $<2e-16$\\
+t.wordcount & -8.005e-02*  & (3.837e-03) & 0.0372 \\
+t.directionneutral & 6.785e-02 & (3.772e-02) & 0.0723 \\
+t.directionpositive & 8.630e-02* & (3.731e-02) & 0.0209 \\
 \bottomrule
 \end{tabular}
 \footnotesize Notes: Standard errors in parentheses. ***Significantly different from zero at the .1\% level; **Significantly different from zero at the 1\% level. *Significantly different from zero at the 5\% level. 
+\end{threeparttable}
+\end{table}
+
+%----------------------------------------
+% Table 2
+%----------------------------------------
+
+\begin{table}[h]
+\caption{Interpreting $\hat{\beta_i}$ Values}
+\centering
+\label{tab:interps}
+\begin{threeparttable}
+\begin{tabular}{lc}
+\toprule
+                            & \% Change in Rent\\
+\midrule
+sqft        & .07\%  \\
+bdrms  & -17.72\% \\
+p.QDAP        &  37\% \\
+wordcount     &    0.171\% \\
+t.wordcount & -0.797\% \\
+t.directionneutral & 7.02\% \\
+t.directionpositive & 9.01\% \\
+\bottomrule
+\end{tabular}
+\footnotesize Notes: This value is found by exponentiating the $\hat{\beta_i}$ estimate, subtracting 1, and multiplying by 100 to find the \% in Y from a one-unit change in $X_i$. Equation: $ exp($\hat{\beta_i}$) - 1 * 100$
 \end{threeparttable}
 \end{table}
 

@@ -13,13 +13,15 @@
 
 \usefonttheme{professionalfonts}
 \setbeamertemplate{navigation symbols}{}
+\setbeamerfont{caption}{size=\footnotesize}
+
 
 % --- page number ---
 \setbeamertemplate{footline}{%
 	\raisebox{10pt}{\makebox[\paperwidth]{\hfill\makebox[7em]{\normalsize\texttt{\insertframenumber/\inserttotalframenumber}}}}%
 }
 
-\title{Understanding the OKC Rental Market through Analysis of Craigslist Data}
+\title{Keep It Short and Sweet: Sentiment Analysis and the OKC Rental Market as seen on Craigslist}
 \author{Karley Nadolski}
 \date{April 29, 2021}
 
@@ -33,11 +35,11 @@
        \begin{tabular}{cl}  
          \begin{tabular}{c}
            \includegraphics[height=3.5cm, width=4.5cm]{craigslist.mapfar.png}
-           \caption{Map of the OKC Metro Area dotted with Craigslist Listings}
+           \caption{OKC Craigslist listings from April 26, 2021}
            \end{tabular}
            & \begin{tabular}{l}
              \parbox{0.5\linewidth}{%  change the parbox width as appropiate
-             \textbf{Craigslist is an important data source for rental markets all over the country}  
+             \textbf{Craigslist is an important data source for rental markets all over the country.}  
      
       Each Craigslist listing is required to include:       
         \begin{itemize}
@@ -68,21 +70,17 @@
 
 \begin{frame}[fragile]{Methods}
     \begin{equation}
-    Y_{price}=\left(\begin{tabular} {l}
+    Y_{logrent}=\left(\begin{tabular} {l}
     \beta_{0} + \beta_{1}X_{sqft} + \beta_{2} X_{bdrms} + \beta_{3}X_{p.QDAP} + \beta_{4}X_{wordcount} \\ + \beta_{5}X_{t.wordcount}+\beta_{6}X_{t.direction} + \varepsilon,
     \end{tabular}\right)
     \end{equation}
-    
-    where $Y_{price}$ is a continuous variable describing the price of each rental listing, $X_{sqft}$ is the square footage of the rental unit, $X_{bdrms}$ is the number of bedrooms, $X_{p.QDAP}$ is the positivity index from the listing's description, $X_{wordcount}$ and $X_{t.wordcount}$ are the word counts for the description and the title, respectively, and finally $X_{t.direction}$ describes the sentiment of the listing title.
+    \begin{itemize}
+        \item where $Y_{logrent}$ is log transformation of a continuous variable describing the price of each rental listing
+        \item $X_{sqft}$ is the square footage of the rental unit, $X_{bdrms}$ is the number of bedrooms, $X_{p.QDAP}$ is the positivity index from the listing's description, $X_{wordcount}$ and $X_{t.wordcount}$ are the word counts for the description and the title, respectively, and $X_{t.direction}$ describes the sentiment of the listing title (positive, neutral, negative).
+    \end{itemize}
 \end{frame}
 
-\begin{frame}[plain,c]
-        \begin{center}
-            \Large Research Findings
-        \end{center}
-\end{frame}
-
-\begin{frame}{Findings}
+\begin{frame}{Research Findings}
 
 \begin{table}[ht]
 \caption{OLS estimates}
@@ -92,13 +90,13 @@
 \toprule
                             & Estimate    & Std. Error & P-value \\
 \midrule
-sqft        & 0.89505***   & (0.03317)    & $<2e-16$    \\
-bdrms  & -234.539***   & (18.02865)   & $<2e-16$ \\
-p.QDAP        &      229.54856 & (184.04089)  & 0.21255 \\
-wordcount     &    1.87407***  & (0.10400)    & $<2e-16$\\
-t.wordcount & -12.57888**  & (4.26128) & 0.00322 \\
-t.directionneutral & 86.17754* & (41.89659) & 0.03992 \\
-t.directionpositive & 100.19908* & (41.44415) & 0.01577 \\
+sqft        & 7.038e-04***   & (2.987e-05)    & $<2e-16$    \\
+bdrms  & -1.951e-01***   & (11.623e-02)   & $<2e-16$ \\
+p.QDAP        &      3.150e-01 & (1.657e-01)  & 0.0576 \\
+wordcount     &    1.705e-03***  & (9.364e-05)    & $<2e-16$\\
+t.wordcount & -8.005e-02*  & (3.837e-03) & 0.0372 \\
+t.directionneutral & 6.785e-02 & (3.772e-02) & 0.0723 \\
+t.directionpositive & 8.630e-02* & (3.731e-02) & 0.0209 \\
 \bottomrule
 \end{tabular}
 \footnotesize Notes: Standard errors in parentheses. ***Significantly different from zero at the .1\% level; **Significantly different from zero at the 1\% level. *Significantly different from zero at the 5\% level. 
@@ -106,18 +104,44 @@ t.directionpositive & 100.19908* & (41.44415) & 0.01577 \\
 \end{table}
 
 \end{frame}
+\begin{frame}{Interpreting the Coefficients}
+
+\begin{table}[ht]
+\caption{Interpreting $\hat{\beta_i}$ Values}
+\centering
+\begin{threeparttable}
+\begin{tabular}{lc}
+\toprule
+                            & \% Change in Rent\\
+\midrule
+sqft        & .07\%  \\
+bdrms  & -17.72\% \\
+p.QDAP        &  37\% \\
+wordcount     &    0.171\% \\
+t.wordcount & -0.797\% \\
+t.directionneutral & 7.02\% \\
+t.directionpositive & 9.01\% \\
+\bottomrule
+\end{tabular}
+\footnotesize Notes: This value is found by exponentiating the $\hat{\beta_i}$ estimate, subtracting 1, and multiplying by 100 to find the \% in Y from a one-unit change in $X_i$. Equation: $ exp($\hat{\beta_i}$) - 1 * 100$.
+\end{threeparttable}
+\end{table}
+    
+\end{frame}
+
 
 \begin{frame}{What did we learn? Why was it important? }
     \begin{itemize}
-        \item For every additional word in a unit description, the rental price rises by about \$2 per month
-        \item For every additional word in a unit title, the rental price falls by about \$13
+        \item For every additional word in a unit description, the rental price rises by about 0.2\%
+        \item For every additional word in a unit title, the rental price falls by about 0.8\%
         \item Positive titles have a higher premium than neutral titles (all else equal) 
         \item Units with higher rent prices often have detailed unit descriptions and snappy, positive listing titles
+        \item The relationship between the positivity of a listing's description and the rental price is large in magnitude even if it's not statistically significant (37\% increase for a one-unit change in the positivity index)
        \end{itemize}
 \end{frame}
 
 \begin{frame}{What did we learn? Why was it important? }
-In Oklahoma City, like in many cities across the United States, there exists a rental market that Craigslist is uniquely able to summarize. Traditional data sources that cover rental markets in the United States aren’t able to release data at a fast enough pace to accurately characterize the market as it changes. With an introductory knowledge of webscraping, it’s possible to analyze data from a local Craigslist subdomain in real time. 
+In Oklahoma City, like in many cities across the United States, there exists a rental market that Craigslist is uniquely able to summarize. Traditional data sources that cover rental markets in the United States are not able to release data at a fast enough pace to accurately characterize the market as it changes. With an introductory knowledge of webscraping, it is relatively painless to analyze data from a local Craigslist subdomain in real time. 
 \end{frame}
 
 \end{document}
