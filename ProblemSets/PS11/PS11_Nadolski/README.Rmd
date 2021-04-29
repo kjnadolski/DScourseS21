@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Tapping into the potential of Craigslist Data: Taking A Closer Look at the OKC Rental Market ##
+## Keep It Short and Sweet: Sentiment Analysis and the OKC Rental Market as seen on Craigslist##
 
 Craigslist is one of the most popular websites in the world, and the most popular site for classifieds-style advertisements. Each of the site's nearly 500 subdomains houses thousands of listings for available rental units in the local area. Tapping into this source of fine-grained and unit specific rental information could be a valuable supplement to other more traditional data sources for data scientists trying to understand the rental market on a more short-term, fast-paced scale. This project will walk through using the [rvest] (https://rvest.tidyverse.org/) package in R to scrape information on apartment listings from the [Oklahoma City Craigslist subdomain] (https://oklahomacity.craigslist.org/). After the data has been collected and organized, this project uses the SentimentAnalysis package in R to perform naive sentiment analysis on the user-generated descriptions and titles for each rental unit. This paper will ask the questions: What does the rental market in OKC look like through the eyes of Craigslist? Is the actual Craigslist listing important (ie - does extra information matter?)? and What is the premium of extra information in the Craigslist market?
 
