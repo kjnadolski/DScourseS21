@@ -358,9 +358,11 @@ Using both OLS (lm() function) and IRLS (rlm() function), the results are as fol
 
   # Create an observation that is log(rent) to use in regression
           craigslist$logrent <- log(craigslist$prices)
+          craigslist.clean$sqft100 <- craigslist.clean$sqft/100
+          craigslist.clean$p.zscore <- ((craigslist.clean$p.QDAP - mean(craigslist.clean$p.QDAP))/sd(craigslist.clean$p.QDAP))
         
-        ols.craigslist <- lm(logrent ~ sqft + bdrms + p.QDAP + wordcount + t.wordcount + t.direction, data = craigslist.clean)
-        irls.craigslist <- rlm(logrent ~ sqft + bdrms + p.QDAP + wordcount + t.wordcount + t.direction, data = craigslist.clean)
+        ols.craigslist <- lm(logrent ~ sqft100 + bdrms + p.zscore + wordcount + t.wordcount + t.direction, data = craigslist.clean)
+        irls.craigslist <- rlm(logrent ~ sqft100 + bdrms + p.zscore + wordcount + t.wordcount + t.direction, data = craigslist.clean)
             summary(ols.craigslist)
             summary(irls.craigslist)
 ```
